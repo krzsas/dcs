@@ -7,6 +7,7 @@ import (
 	"fmt"
 	// This is a forked version of codesearch/regexp which returns the results
 	// in a structure instead of printing to stdout/stderr directly.
+	"github.com/Debian/dcs/cmd/dcs-web/varz"
 	"github.com/Debian/dcs/ranking"
 	"github.com/Debian/dcs/regexp"
 	"io"
@@ -79,6 +80,9 @@ func Source(w http.ResponseWriter, r *http.Request) {
 
 	// Create one Goroutine per filename, which means all IO will be done in
 	// parallel.
+	// TODO: implement a more clever way of scheduling IO. when enough results
+	// are gathered, we don’t need to grep any other files, so currently we may
+	// do unnecessary work.
 	output := make(chan []regexp.Match)
 	for _, filename := range filenames {
 		go func(filename string) {
@@ -133,6 +137,14 @@ func Source(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Read the remaining outputs in the background.
+	if reply.LastUsedFilename > 0 {
+		go func(stopped, max int) {
+			for i := stopped + 1; i < max; i++ {
+				<-output
+			}
+		}(reply.LastUsedFilename, len(filenames))
+	}
 }
 
 func main() {
@@ -141,5 +153,6 @@ func main() {
 
 	http.HandleFunc("/source", Source)
 	http.HandleFunc("/file", File)
+	http.HandleFunc("/varz", varz.Varz)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }

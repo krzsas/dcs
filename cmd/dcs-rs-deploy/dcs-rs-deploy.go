@@ -155,7 +155,7 @@ func main() {
 		volumeId, err = rs.CreateBlockStorage(
 			rackspace.CreateBlockStorageRequest{
 				DisplayName: "NEW-dcs-src-0",
-				Size:        200,
+				Size:        220,
 				VolumeType:  "SSD",
 			})
 		if err != nil {
@@ -221,7 +221,7 @@ func main() {
 
 set -e
 
-/bin/rm -rf /dcs/NEW /dcs/OLD
+/bin/rm -rf /dcs/NEW /dcs/OLD /dcs/unpacked-new
 /bin/mkdir /dcs/NEW /dcs/OLD
 
 [ -d ~/.gnupg ] || mkdir ~/.gnupg
@@ -434,6 +434,17 @@ ExecStart=/usr/bin/dcs-web \
 					Data: newIp,
 				})
 		} else if record.Name == "int-dcs-web.rackspace.zekjur.net" {
+			// This record points to the private IPv4 address, used by our
+			// monitoring.
+			log.Printf("record %v\n", record)
+			newIp := server.PrivateIPv4()
+			updates = append(updates,
+				rackspace.Record{
+					Id:   record.Id,
+					Name: record.Name,
+					Data: newIp,
+				})
+		} else if record.Name == "int-dcs-source-backend.rackspace.zekjur.net" {
 			// This record points to the private IPv4 address, used by our
 			// monitoring.
 			log.Printf("record %v\n", record)
